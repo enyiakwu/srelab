@@ -1,10 +1,9 @@
 
 
-
-module "vpc_01" {
-  source  = "terraform-aws-modules/vpc/aws//examples/complete"
-  version = "5.1.1"
-}
+# module "vpc_01" {
+#   source  = "terraform-aws-modules/vpc/aws//examples/complete"
+#   version = "5.1.1"
+# }
 
 
 # Create the VPC
@@ -14,11 +13,16 @@ resource "aws_vpc" "main" {                # Creating VPC here
 
     enable_dns_hostnames = true
     enable_dns_support = true
-    
 
     tags = {
     Name = "Lab VPC"
     }
+
+#     lifecycle {
+#       ignore_changes = [ 
+#         aws_route53_zone_association,
+#        ]
+# }
 }
 
 
@@ -34,14 +38,15 @@ resource "aws_internet_gateway" "IGW" {    # Creating Internet Gateway
 # Create a Public Subnets.
 resource "aws_subnet" "publicsubnets" {    # Creating Public Subnets
     vpc_id =  aws_vpc.main.id
-    cidr_block = "${var.public_subnets}"        # CIDR block of public subnets
+
+    cidr_block = element(var.public_subnets, 0)      # CIDR block of public subnets
 }
 
 # Create a Private Subnet                   # Creating Private Subnets
 resource "aws_subnet" "privatesubnets" {
     count = 2
     vpc_id =  aws_vpc.main.id
-    cidr_block = "${var.private_subnets}"          # CIDR block of private subnets
+    cidr_block = element(var.private_subnets, count.index)          # CIDR block of private subnets
 }
 
 # Route table for Public Subnet
@@ -59,11 +64,11 @@ gateway_id = aws_internet_gateway.IGW.id
 
 # Route table for Private Subnet's
 resource "aws_route_table" "PrivateRT" {    # Creating RT for Private Subnet
-vpc_id = aws_vpc.main.id
-route {
-cidr_block = "0.0.0.0/0"             # Traffic from Private Subnet reaches Internet via NAT Gateway
-nat_gateway_id = aws_nat_gateway.NATgw.id
-}
+    vpc_id = aws_vpc.main.id
+    route {
+    cidr_block = "0.0.0.0/0"             # Traffic from Private Subnet reaches Internet via NAT Gateway
+    nat_gateway_id = aws_nat_gateway.NATgw.id
+    }
 }
 
 # Route table Association with Public Subnet's
@@ -74,22 +79,24 @@ resource "aws_route_table_association" "PublicRTassociation" {
 
 # Route table Association with Private Subnet's
 resource "aws_route_table_association" "PrivateRTassociation" {
-subnet_id = aws_subnet.privatesubnets.id
-route_table_id = aws_route_table.PrivateRT.id
+    subnet_id = aws_subnet.privatesubnets[0].id
+    route_table_id = aws_route_table.PrivateRT.id
 }
 
-# resource "aws_eip" "nateIP" {
-#     vpc   = true
-# }
+resource "aws_eip" "nateIP" {
+    domain = "vpc"
+    # vpc   = true
+}
 
-# # Creating the NAT Gateway using subnet_id and allocation_id
-# resource "aws_nat_gateway" "NATgw" {
-#     allocation_id = aws_eip.nateIP.id
-#     subnet_id = aws_subnet.publicsubnets.id
-# }
+# Creating the NAT Gateway using subnet_id and allocation_id
+resource "aws_nat_gateway" "NATgw" {
+    allocation_id = aws_eip.nateIP.id
+    subnet_id = aws_subnet.publicsubnets.id
+}
 
 resource "aws_eip" "bastion-eip" {
-    vpc   = true
+    domain = "vpc"
+    # vpc   = true
 }
 
 # Provide a security group for SSH and HTTP for servers
@@ -127,26 +134,24 @@ resource "aws_key_pair" "ec2-key" {
 # possible ubuntu amis: eu-west-1 hvm, ebs-ssd, 16.04 LTS ami-0e8225827581c983a ami-0f29c8402f8cce65c
 
 resource "aws_instance" "nginx_server" {
-    count = var.create_server ? 3 : 1
+    count = var.create_server ? 3 : 0
     
     ami           = "ami-0e8225827581c983a"
     instance_type = "t2.micro"
     key_name =  aws_key_pair.ec2-key.id
     subnet_id = aws_subnet.privatesubnets[0].id
 
-    for_each = var.create_server
-        content {
-        tags = {
-        Name = "nginx_server_${count.index}"
+    tags = {
+    Name = "nginx_server_${count.index}"
         }
     # VPC and AZs
-        vpc_security_group_ids = ["${aws_security_group.ssh_sre.id}"]
-        availability_zone = element(var.azs, "${count.index}")
+    vpc_security_group_ids = ["${aws_security_group.ssh_sre.id}"]
+    availability_zone = element(var.az, count.index)
 
     # nginx installation
         # storing the nginx.sh file in the EC2 instnace
         provisioner "file" {
-            source      = "nginx.sh"
+            source      = "../nginx.sh"
             destination = "/tmp/nginx.sh"
         }
         # Provisioning the EC2 using the nginx.sh file
@@ -163,7 +168,6 @@ resource "aws_instance" "nginx_server" {
             host        = self.public_ip
             user        = "ubuntu"
             private_key = file("${var.PRIVATE_KEY_PATH}")
-    }
     }
 }
 
@@ -185,6 +189,10 @@ resource "aws_instance" "bastion" {
         associate_public_ip_address,
        ]
 }
+    # Configure the bastion to deploy ansible playbok from local exec
+    provisioner "local-exec" {
+        command = "sleep 240; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu --private-key ${var.PRIVATE_KEY_PATH} -i '${aws_eip.bastion-eip},' play.yml"
+    }
 }
 
 # Assign bastion to public eip
@@ -212,9 +220,9 @@ resource "aws_elb" "sre-lb" {
   availability_zones = var.az
 
   access_logs {
-    bucket        = "foo"
+    bucket        = "lblogs"
     bucket_prefix = "sre-lb"
-    interval      = 600
+    interval      = 60
   }
 
   listener {
@@ -261,6 +269,67 @@ resource "aws_elb" "sre-lb" {
 
 #         }
 # }
+
+
+# Create a private hosted zone
+resource "aws_route53_zone" "private" {
+  name = "srelab.com"
+
+  vpc {
+    vpc_id = aws_vpc.main.id
+  }
+}
+
+
+# Route53 with Weighted routing
+
+resource "aws_route53_record" "www-dev" {
+  zone_id = aws_route53_zone.private.zone_id
+  name    = "www"
+  type    = "CNAME"
+  ttl     = 5
+
+  weighted_routing_policy {
+    weight = 10
+  }
+
+  set_identifier = "dev"
+  records        = ["dev.srelab.com"]
+}
+
+resource "aws_route53_record" "www-live" {
+  zone_id = aws_route53_zone.private.zone_id
+  name    = "www"
+  type    = "CNAME"
+  ttl     = 5
+
+  weighted_routing_policy {
+    weight = 90
+  }
+
+  set_identifier = "live"
+  records        = ["live.srelab.com"]
+}
+
+
+# create a local inventory file for ansible
+
+# resource "local_file" "ansible_hosts" {
+#   content = templatefile("../ansible_hosts.tpl" ,
+#     {
+#       bastion_hosts = aws_instance.bastion.public_ip,
+#       nginx_servers = aws_instance.nginx_server.*.public_ip,
+#       ssh_pass = var.PRIVATE_KEY_PATH
+#     }
+#   )
+
+#   filename = "ansible_hosts"
+# }
+
+
+
+
+
 
 
 
