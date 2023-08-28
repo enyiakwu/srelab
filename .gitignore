@@ -3,6 +3,7 @@
 *key
 **/*key*
 *backend*
+*tfplan*
 
 # Local .terraform directories
 **/.terraform/*
