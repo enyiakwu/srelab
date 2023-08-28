@@ -9,7 +9,7 @@ apt-get -y install nginx
 # make sure nginx is started
 service nginx start
 
-# install python3 nad check
+# install python and check
 apt-get update
 apt-get install python -y
 # make sure pip is installed
