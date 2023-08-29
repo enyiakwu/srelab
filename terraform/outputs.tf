@@ -19,5 +19,5 @@ output "bastion_eip" {
 
 output "elb_dns" {
   description = "elb endpoint"
-  value = try(aws_elb.sre-lb.dns_name, null)
+  value = try(aws_lb.sre-lb.dns_name, null)
 }

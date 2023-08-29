@@ -12,8 +12,10 @@
       apt: name=jenkins update_cache=yes
 
     - name: ensure jenkins is running
-      register: jenkinsrunning
       service: name=jenkins state=started
+    
+    # - name: open firewall port
+    #   firewalld: zone=public port=8080/tcp permanent=true state=enabled immediate=true
 
     - name: notify slack - successfully installed jenkins
       community.general.slack:
@@ -39,7 +41,7 @@
             – ------------------------------------
             ``
             `Server`: {{ansible_host}}
-            `Status`: Ansible Jenkins Install Job Successful
+            `Status`: Ansible Jenkins Install Job NOT successful
             – ------------------------------------
         channel: '#automation-deployments'
         color: good
