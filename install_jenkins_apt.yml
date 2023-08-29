@@ -1,0 +1,50 @@
+- hosts: all
+  become: true
+
+  tasks:
+    - name: ensure the jenkins apt repository key is installed
+      apt_key: url=https://pkg.jenkins.io/debian-stable/jenkins.io.key state=present
+
+    - name: ensure the repository is configured
+      apt_repository: repo='deb https://pkg.jenkins.io/debian-stable binary/' state=present
+
+    - name: ensure jenkins is installed
+      apt: name=jenkins update_cache=yes
+
+    - name: ensure jenkins is running
+      service: name=jenkins state=started
+    
+    # - name: open firewall port
+    #   firewalld: zone=public port=8080/tcp permanent=true state=enabled immediate=true
+
+    - name: notify slack - successfully installed jenkins
+      community.general.slack:
+        token: T05Q37QNH97/B05Q4056Y6M/q76qaZoerJCLg00q8MqlK7qD
+        msg: |
+            ### StatusUpdate ###
+            – ------------------------------------
+            ``
+            `Server`: {{ansible_host}}
+            `Status`: Ansible Jenkins Install Job Successful
+            – ------------------------------------
+        channel: '#automation-deployments'
+        color: good
+      delay: 30
+      when: jenkinsrunning is not failed
+      ignore_errors: true
+
+    - name: notify slack - unsuccessful deployment
+      community.general.slack:
+        token: T05Q37QNH97/B05Q4056Y6M/q76qaZoerJCLg00q8MqlK7qD
+        msg: |
+            ### StatusUpdate ###
+            – ------------------------------------
+            ``
+            `Server`: {{ansible_host}}
+            `Status`: Ansible Jenkins Install Job NOT successful
+            – ------------------------------------
+        channel: '#automation-deployments'
+        color: good
+      delay: 30
+      when: jenkinsrunning is failed
+      ignore_errors: true    

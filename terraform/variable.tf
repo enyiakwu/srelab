@@ -6,30 +6,38 @@ variable "region" {
 }
 variable "main_vpc_cidr" {
     type = string
-    default = "10.0.0.0/24"
+    default = "10.0.0.0/20"
     }
 variable "public_subnets" {
     type = list(string)
-    default = ["10.0.0.128/28"]
+    default = ["10.0.2.0/24"]
     }
+    
 variable "private_subnets" {
     type = list(string)
-    default = ["10.0.0.192/28", "10.0.0.209/28"]
+    default = ["10.0.3.0/24", "10.0.4.0/24"]
 }
 
 variable "PRIVATE_KEY_PATH" {
-  default = "ec2-key"
+  default = "/home/mpc/ec2-key"
 }
 variable "PUBLIC_KEY_PATH" {
-  default = "ec2-key.pub"
+  default = "../ec2-key.pub"
 }
 variable "EC2_USER" {
-  default = "ubuntu"
+  default = "ec2-user"
 }
 
 variable "create_server" {
-    type = list(map)
-    default = 3
+    description = "whether to create ec2 servers"
+    type = bool
+    default = true
+}
+
+variable "instance_count" {
+    description = "whether to create ec2 servers"
+    type = string
+    default = "3"
 }
 
 variable "az" {
@@ -37,12 +45,12 @@ variable "az" {
     default = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
 }
 
-variable "sg_ingress" {
+# variable "sg_ingress" {
 
 
-}
+# }
 
-variable "sg_egress" {
+# variable "sg_egress" {
 
 
-}
+# }
