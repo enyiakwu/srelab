@@ -46,14 +46,30 @@
       service: name=jenkins state=started enabled=true
       register: jenkinsrunning
 
-    # - name: ensure ufw is running
-    #   service: name=ufw state=started enabled=true
+    - name: ensure ufw is running
+      service: name=ufw state=started enabled=true
 
-    # - name: open firewall port
-    #   ansible.posix.firewalld: zone=public port=8080/tcp permanent=true state=enabled immediate=true
+    - name: allow all ssh connection
+      ufw:
+        rule: allow
+        port: ssh
+        proto: tcp
 
-    # - name: open firewall port
-    #   ufw: rule=allow port=8888 proto=any state=enabled
+    - name: add port 80 and dest 8080
+      ufw:
+        rule: allow
+        proto: any
+        port: 80
+        # to_port: 8080
+        log: yes
+
+    - name: add port 443 and dest 8443
+      ufw:
+        rule: limit
+        proto: any
+        from_port: 443
+        to_port: 8443
+        log: yes    
 
     - name: notify slack - successfully installed jenkins
       community.general.slack:
@@ -85,4 +101,5 @@
         color: good
       delay: 30
       when: jenkinsrunning is failed
-      ignore_errors: true    
+      ignore_errors: true
+
