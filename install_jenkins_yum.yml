@@ -3,17 +3,30 @@
 
   tasks:
     - name: ensure the repository is configured
-      yum_repository: name=jenkins description='Official Jenkins Yum Repo' baseurl=https://pkg.jenkins.io/redhat-stable/ gpgkey=https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key gpgcheck=yes state=present enabled=yes
+      yum_repository: 
+        name: jenkins
+        description: 'Official Jenkins Yum Repo'
+        baseurl: https://pkg.jenkins.io/redhat-stable/
+        gpgkey: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key 
+        gpgcheck: yes
+        # enabled=yes
+        state: absent
 
-    - name: ensure jenkins is installed
-      yum: name=jenkins update_cache=yes state=present
+    # - name: ensure jenkins is installed
+    #   yum: name=jenkins update_cache=yes state=present
 
-    - name: ensure jenkins is running
-      register: jenkinsrunning
-      service: name=jenkins enabled=yes state=started
-    
-    # - name: open firewall port
-    #   firewalld: zone=public port=8080/tcp permanent=true state=enabled immediate=true
+    # - name: ensure jenkins is running
+    #   register: jenkinsrunning
+    #   service: name=jenkins enabled=yes state=started
+
+    - name: open firewall port
+      ansible.posix.firewalld: 
+        service: http
+        permanent: yes
+        state: enabled
+        immediate: true
+      vars:
+        ansible_python_interpreter: /usr/bin/python2.7
 
     - name: notify slack - successfully installed jenkins
       community.general.slack:
@@ -42,7 +55,7 @@
             `Status`: Ansible Jenkins Install Job NOT Successful
             – ------------------------------------
         channel: '#automation-deployments'
-        color: good
+        color: warning
       delay: 30
       when: jenkinsrunning is failed
       ignore_errors: true    

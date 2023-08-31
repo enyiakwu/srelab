@@ -156,7 +156,7 @@ resource "aws_key_pair" "ec2-key" {
 resource "aws_instance" "nginx_server" {
     count = var.create_server ? 3 : 0
     
-    ami           = "ami-0464e8a4eb8d4fce2"
+    ami           = var.server_ami
     instance_type = "t2.micro"
     key_name =  aws_key_pair.ec2-key.id
     subnet_id = aws_subnet.privatesubnets[0].id # element(aws_subnet.privatesubnets[*].id, count.index)
@@ -218,7 +218,7 @@ resource "aws_eip_association" "bastion-eip-association" {
 }
 
 resource "aws_instance" "bastion" {    
-    ami           = "ami-0464e8a4eb8d4fce2"
+    ami           = var.server_ami
     instance_type = "t2.micro"
     key_name =  aws_key_pair.ec2-key.id
     subnet_id = aws_subnet.publicsubnets.id
@@ -235,23 +235,23 @@ resource "aws_instance" "bastion" {
         associate_public_ip_address,
        ]
     }
-    connection {
-      type        = "ssh"
-      host        = "${self.public_ip}" # aws_eip.bastion-eip.public_ip
-      user        = "ec2-user"
-      private_key = file("${var.PRIVATE_KEY_PATH}")
-    }
-    provisioner "remote-exec" {
-      inline      = [
-        # "sudo yum install python",
-        # "apt-get install python -y",
-        "sudo yum install python37",
-        "python --version"
-        ]
-      }
+    # connection {
+    #   type        = "ssh"
+    #   host        = "${self.public_ip}" # aws_eip.bastion-eip.public_ip
+    #   user        = "ec2-user"
+    #   private_key = file("${var.PRIVATE_KEY_PATH}")
+    # }
+    # provisioner "remote-exec" {
+    #   inline      = [
+    #     # "sudo yum install python",
+    #     # "apt-get install python -y",
+    #     "sudo yum install python37",
+    #     "python3 --version"
+    #     ]
+    #   }
     # Configure the bastion to deploy ansible playbok from local exec
     provisioner "local-exec" {
-      command = "sleep 60; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ec2-user --private-key ${var.PRIVATE_KEY_PATH} -i '${self.public_ip},' ../install_jenkins.yml"
+      command = "sleep 30; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu --private-key ${var.PRIVATE_KEY_PATH} -i '${self.public_ip},' ../install_jenkins_apt.yml"
     }
 }
 

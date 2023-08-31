@@ -25,7 +25,13 @@ variable "PUBLIC_KEY_PATH" {
   default = "../ec2-key.pub"
 }
 variable "EC2_USER" {
-  default = "ec2-user"
+  default = "ubuntu"
+}
+
+variable "server_ami" {
+    description = "EC2 ami variable"
+    type = string
+    default = "ami-0136ddddd07f0584f" # "ami-0464e8a4eb8d4fce2" # "ami-0136ddddd07f0584f" ubuntu
 }
 
 variable "create_server" {

@@ -4,6 +4,7 @@
 **/*key*
 *backend*
 *tfplan*
+*vscode*
 
 # Local .terraform directories
 **/.terraform/*
