@@ -17,7 +17,7 @@ output "bastion_eip" {
   value = try(aws_eip_association.bastion-eip-association.public_ip, null)
 }
 
-output "elb_dns" {
-  description = "elb endpoint"
-  value = try(aws_lb.sre-lb.dns_name, null)
-}
+# output "elb_dns" {
+#   description = "elb endpoint"
+#   value = try(aws_lb.sre-lb.dns_name, null)
+# }

@@ -153,33 +153,33 @@ resource "aws_key_pair" "ec2-key" {
 
 # possible ec2-user amis: eu-west-1 hvm, ebs-ssd, 18.04 LTS - suitable for t2.micro tier ami-0464e8a4eb8d4fce2
 
-resource "aws_instance" "nginx_server" {
-    count = var.create_server ? 3 : 0
+resource "aws_instance" "ubuntu_server" {
+    count = var.create_server ? var.instance_count : 0
     
-    ami           = "ami-0464e8a4eb8d4fce2"
-    instance_type = "t2.micro"
+    ami           = "ami-0136ddddd07f0584f" # "ami-0464e8a4eb8d4fce2"
+    instance_type = "t3.xlarge"
     key_name =  aws_key_pair.ec2-key.id
     subnet_id = aws_subnet.privatesubnets[0].id # element(aws_subnet.privatesubnets[*].id, count.index)
 
     tags = {
-    Name = "nginx_server_${count.index}"
+    Name = "maxserv${count.index}"
         }
     # VPC and AZs
     vpc_security_group_ids = ["${aws_security_group.ssh_sre.id}"]
     # availability_zone = element(aws_subnet.privatesubnets[*].availability_zone, count.index)
 
-    # nginx installation
-    user_data = "${file("../nginx.sh")}" # <<EOF
+    # ubuntu installation
+    # user_data = "${file("../ubuntu.sh")}" # <<EOF
     # #!/bin/bash
     # # sleep until instance is ready
     # until [[ -f /var/lib/cloud/instance/boot-finished ]]; do
     #   sleep 1
     # done
-    # # install nginx in server
+    # # install ubuntu in server
     # apt-get update
-    # apt-get -y install nginx
-    # # make sure nginx is started
-    # service nginx start
+    # apt-get -y install ubuntu
+    # # make sure ubuntu is started
+    # service ubuntu start
 
     # # install python and check
     # apt-get update
@@ -189,25 +189,38 @@ resource "aws_instance" "nginx_server" {
 
     # use the below provisioners option if these server have public ips or you make the instance accessible from ssh
     
-  #   # ssh connection to install the nginx server
+  #   # ssh connection to install the ubuntu server
   #   connection {
   #     type        = "ssh"
   #     host        = self.public_ip
   #     user        = "ec2-user"
   #     private_key = file("${var.PRIVATE_KEY_PATH}")
   #     }    
-  #   # storing the nginx.sh file in the EC2 instnace
+  #   # storing the ubuntu.sh file in the EC2 instnace
   #   provisioner "file" {
-  #     source      = "../nginx.sh"
-  #     destination = "/tmp/nginx.sh"
+  #     source      = "../ubuntu.sh"
+  #     destination = "/tmp/ubuntu.sh"
   #     }
-  #   # Provisioning the EC2 using the nginx.sh file
+  #   # Provisioning the EC2 using the ubuntu.sh file
   #   # Terraform does not reccomend this method becuase Terraform state file cannot track what the script is provisioning
   #   provisioner "remote-exec" {
   #     inline = [
-  #         "chmod +x /tmp/nginx.sh",
-  #         "sudo /tmp/nginx.sh"
+  #         "chmod +x /tmp/ubuntu.sh",
+  #         "sudo /tmp/ubuntu.sh"
   #         ]                      
+  # }
+}
+
+# create NICs for instances
+resource "aws_network_interface" "serv_nic" {
+  count = 12
+  subnet_id       = aws_subnet.privatesubnets[0].id
+  private_ip_list_enabled = true
+  security_groups = [aws_security_group.ssh_sre.id]
+
+  # attachment {
+  #   instance     = element(aws_instance.ubuntu_server[*].id, var.instance_count)
+  #   device_index = count.index
   # }
 }
 
@@ -235,25 +248,27 @@ resource "aws_instance" "bastion" {
         associate_public_ip_address,
        ]
     }
-    connection {
-      type        = "ssh"
-      host        = "${self.public_ip}" # aws_eip.bastion-eip.public_ip
-      user        = "ec2-user"
-      private_key = file("${var.PRIVATE_KEY_PATH}")
-    }
-    provisioner "remote-exec" {
-      inline      = [
-        # "sudo yum install python",
-        # "apt-get install python -y",
-        "sudo yum install python37",
-        "python --version"
-        ]
-      }
-    # Configure the bastion to deploy ansible playbok from local exec
-    provisioner "local-exec" {
-      command = "sleep 60; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ec2-user --private-key ${var.PRIVATE_KEY_PATH} -i '${self.public_ip},' ../install_jenkins.yml"
-    }
+    # connection {
+    #   type        = "ssh"
+    #   host        = "${self.public_ip}" # aws_eip.bastion-eip.public_ip
+    #   user        = "ec2-user"
+    #   private_key = file("${var.PRIVATE_KEY_PATH}")
+    # }
+    # provisioner "remote-exec" {
+    #   inline      = [
+    #     # "sudo yum install python",
+    #     # "apt-get install python -y",
+    #     "sudo yum install python37",
+    #     "python --version"
+    #     ]
+    #   }
+    # # Configure the bastion to deploy ansible playbok from local exec
+    # provisioner "local-exec" {
+    #   command = "sleep 60; ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ec2-user --private-key ${var.PRIVATE_KEY_PATH} -i '${self.public_ip},' ../install_jenkins.yml"
+    # }
 }
+
+
 
 
 # ELB configuration
@@ -316,7 +331,7 @@ resource "aws_instance" "bastion" {
 #     interval            = 60
 #   }
 
-#   instances                   = [aws_instance.nginx_server[0].id,  aws_instance.nginx_server[1].id,  aws_instance.nginx_server[2].id]
+#   instances                   = [aws_instance.ubuntu_server[0].id,  aws_instance.ubuntu_server[1].id,  aws_instance.ubuntu_server[2].id]
 #   cross_zone_load_balancing   = true
 #   idle_timeout                = 400
 #   connection_draining         = true
@@ -327,67 +342,67 @@ resource "aws_instance" "bastion" {
 #   }
 # }
 
-# Create a new load balancer
-resource "aws_lb" "sre-lb" {
-  name               = "sre-elb-tf"
-  internal           = true
-  load_balancer_type = "network"
+# # Create a new load balancer
+# resource "aws_lb" "sre-lb" {
+#   name               = "sre-elb-tf"
+#   internal           = true
+#   load_balancer_type = "network"
 
-  subnet_mapping {
-    subnet_id            = aws_subnet.privatesubnets[0].id
-    private_ipv4_address = "10.0.3.250"
-  }
+#   subnet_mapping {
+#     subnet_id            = aws_subnet.privatesubnets[0].id
+#     private_ipv4_address = "10.0.3.250"
+#   }
 
-  subnet_mapping {
-    subnet_id            = aws_subnet.privatesubnets[1].id
-    private_ipv4_address = "10.0.4.250"
-  }
+#   subnet_mapping {
+#     subnet_id            = aws_subnet.privatesubnets[1].id
+#     private_ipv4_address = "10.0.4.250"
+#   }
 
-  tags = {
-    Name = "srelab elb"
-  }
-}
-
-
-# Create a private hosted zone
-resource "aws_route53_zone" "private" {
-  name = "srelab.com"
-
-  vpc {
-    vpc_id = aws_vpc.main.id
-  }
-}
+#   tags = {
+#     Name = "srelab elb"
+#   }
+# }
 
 
-# Route53 with Weighted routing
+# # Create a private hosted zone
+# resource "aws_route53_zone" "private" {
+#   name = "srelab.com"
 
-resource "aws_route53_record" "www-dev" {
-  zone_id = aws_route53_zone.private.zone_id
-  name    = "www"
-  type    = "CNAME"
-  ttl     = 5
+#   vpc {
+#     vpc_id = aws_vpc.main.id
+#   }
+# }
 
-  weighted_routing_policy {
-    weight = 10
-  }
 
-  set_identifier = "dev"
-  records        = ["dev.srelab.com"]
-}
+# # Route53 with Weighted routing
 
-resource "aws_route53_record" "www-live" {
-  zone_id = aws_route53_zone.private.zone_id
-  name    = "www"
-  type    = "CNAME"
-  ttl     = 5
+# resource "aws_route53_record" "www-dev" {
+#   zone_id = aws_route53_zone.private.zone_id
+#   name    = "www"
+#   type    = "CNAME"
+#   ttl     = 5
 
-  weighted_routing_policy {
-    weight = 90
-  }
+#   weighted_routing_policy {
+#     weight = 10
+#   }
 
-  set_identifier = "live"
-  records        = ["live.srelab.com"]
-}
+#   set_identifier = "dev"
+#   records        = ["dev.srelab.com"]
+# }
+
+# resource "aws_route53_record" "www-live" {
+#   zone_id = aws_route53_zone.private.zone_id
+#   name    = "www"
+#   type    = "CNAME"
+#   ttl     = 5
+
+#   weighted_routing_policy {
+#     weight = 90
+#   }
+
+#   set_identifier = "live"
+#   records        = ["live.srelab.com"]
+# }
 
 
 # create a local inventory file for ansible
@@ -396,7 +411,7 @@ resource "aws_route53_record" "www-live" {
 #   content = templatefile("../ansible_hosts.tpl" ,
 #     {
 #       bastion_hosts = aws_instance.bastion.public_ip,
-#       nginx_servers = aws_instance.nginx_server.*.public_ip,
+#       ubuntu_servers = aws_instance.ubuntu_server.*.public_ip,
 #       ssh_pass = var.PRIVATE_KEY_PATH
 #     }
 #   )

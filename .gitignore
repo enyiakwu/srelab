@@ -4,6 +4,7 @@
 **/*key*
 *backend*
 *tfplan*
+*gpg*
 
 # Local .terraform directories
 **/.terraform/*
@@ -12,6 +13,8 @@
 # .tfstate files
 *.tfstate
 *.tfstate.*
+*.lock.hcl
+**/*lock*
 
 # Crash log files
 crash.log

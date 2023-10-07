@@ -19,7 +19,7 @@ variable "private_subnets" {
 }
 
 variable "PRIVATE_KEY_PATH" {
-  default = "/home/mpc/ec2-key"
+  default = "../ec2-key"
 }
 variable "PUBLIC_KEY_PATH" {
   default = "../ec2-key.pub"
