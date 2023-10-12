@@ -157,7 +157,7 @@ resource "aws_instance" "ubuntu_server" {
     count = var.create_server ? var.instance_count : 0
     
     ami           = "ami-0136ddddd07f0584f" # "ami-0464e8a4eb8d4fce2"
-    instance_type = "t3.xlarge"
+    instance_type = "t2.medium" # "t3.xlarge"
     key_name =  aws_key_pair.ec2-key.id
     subnet_id = aws_subnet.privatesubnets[0].id # element(aws_subnet.privatesubnets[*].id, count.index)
 
@@ -211,18 +211,18 @@ resource "aws_instance" "ubuntu_server" {
   # }
 }
 
-# create NICs for instances
-resource "aws_network_interface" "serv_nic" {
-  count = 12
-  subnet_id       = aws_subnet.privatesubnets[0].id
-  private_ip_list_enabled = true
-  security_groups = [aws_security_group.ssh_sre.id]
+# # create NICs for instances
+# resource "aws_network_interface" "serv_nic" {
+#   count = 12
+#   subnet_id       = aws_subnet.privatesubnets[0].id
+#   private_ip_list_enabled = true
+#   security_groups = [aws_security_group.ssh_sre.id]
 
-  # attachment {
-  #   instance     = element(aws_instance.ubuntu_server[*].id, var.instance_count)
-  #   device_index = count.index
-  # }
-}
+#   # attachment {
+#   #   instance     = element(aws_instance.ubuntu_server[*].id, var.instance_count)
+#   #   device_index = count.index
+#   # }
+# }
 
 # Assign bastion to public eip
 resource "aws_eip_association" "bastion-eip-association" {

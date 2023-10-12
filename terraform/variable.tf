@@ -36,8 +36,8 @@ variable "create_server" {
 
 variable "instance_count" {
     description = "whether to create ec2 servers"
-    type = string
-    default = "3"
+    type = number
+    default = 1
 }
 
 variable "az" {
