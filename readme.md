@@ -1,6 +1,5 @@
-
-
-
+This sre project is adapted from this git - enjoy
+https://github.com/tajawal/code-challenge/blob/master/SRE.md
 
 ## Terraform:
 ### Task 01 :
